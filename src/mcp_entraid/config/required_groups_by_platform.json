@@ -1,0 +1,35 @@
+{
+  "windows": [
+    {
+      "group_id": "00000000-0000-0000-0000-000000000001",
+      "display_name": "GRP-Windows-Baseline",
+      "description": "Grupo base para usuarios Windows"
+    },
+    {
+      "group_id": "00000000-0000-0000-0000-000000000005",
+      "display_name": "GRP-Windows-Security-AddOn",
+      "description": "Grupo adicional para usuarios Windows"
+    }
+  ],
+  "linux": [
+    {
+      "group_id": "00000000-0000-0000-0000-000000000002",
+      "display_name": "GRP-Linux-Baseline",
+      "description": "Grupo base para usuarios Linux"
+    }
+  ],
+  "mac": [
+    {
+      "group_id": "00000000-0000-0000-0000-000000000003",
+      "display_name": "GRP-Mac-Baseline",
+      "description": "Grupo base para usuarios Mac"
+    }
+  ],
+  "mobile": [
+    {
+      "group_id": "00000000-0000-0000-0000-000000000004",
+      "display_name": "GRP-Mobile-Baseline",
+      "description": "Grupo base para usuarios Mobile"
+    }
+  ]
+}

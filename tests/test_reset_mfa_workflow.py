@@ -1,0 +1,186 @@
+import pytest
+
+from mcp_entraid.audit.audit_logger import AuditLogger
+from mcp_entraid.schemas.authentication_methods import (
+    AuthenticationMethodOperationResult,
+    AuthenticationMethodSummary,
+)
+from mcp_entraid.schemas.common import ToolResponse
+from mcp_entraid.schemas.users import EntraUser
+from mcp_entraid.security.authorizer import Authorizer
+from mcp_entraid.workflows.reset_mfa_workflow import (
+    STEP_DELETE_AUTHENTICATION_METHODS,
+    STEP_REVOKE_SESSIONS,
+    ResetMfaWorkflow,
+)
+from mcp_entraid.workflows.workflow_store import WorkflowStore
+
+
+class FakeUserService:
+    async def get_user(self, user_upn: str) -> ToolResponse[EntraUser]:
+        return ToolResponse[EntraUser](
+            success=True,
+            data=EntraUser(
+                user_id="user-123",
+                user_display_name="Alice Silva",
+                user_principal_name=user_upn,
+            ),
+        )
+
+
+class FakeAuthenticationMethodService:
+    def __init__(self) -> None:
+        self.phone_methods = [
+            AuthenticationMethodSummary(
+                id="phone-1",
+                type="phoneMethod",
+                display_name="mobile",
+                phone_type="mobile",
+                phone_number_masked="***-1234",
+            )
+        ]
+        self.mfa_methods = [
+            AuthenticationMethodSummary(
+                id="mfa-1",
+                type="microsoftAuthenticatorMethod",
+                display_name="Microsoft Authenticator",
+            )
+        ]
+        self.deleted_phone_ids: list[str] = []
+        self.deleted_mfa_ids: list[str] = []
+        self.sessions_revoked = False
+        self.fail_mfa_delete = False
+
+    async def list_phone_methods(self, user_id: str) -> list[AuthenticationMethodSummary]:
+        return self.phone_methods
+
+    async def list_microsoft_authenticator_methods(
+        self,
+        user_id: str,
+    ) -> list[AuthenticationMethodSummary]:
+        return self.mfa_methods
+
+    async def delete_phone_method(
+        self,
+        user_id: str,
+        method: AuthenticationMethodSummary,
+    ) -> AuthenticationMethodOperationResult:
+        self.deleted_phone_ids.append(method.id)
+        return AuthenticationMethodOperationResult(
+            id=method.id,
+            type=method.type,
+            display_name=method.display_name,
+            status="deleted",
+        )
+
+    async def delete_microsoft_authenticator_method(
+        self,
+        user_id: str,
+        method: AuthenticationMethodSummary,
+    ) -> AuthenticationMethodOperationResult:
+        self.deleted_mfa_ids.append(method.id)
+        if self.fail_mfa_delete:
+            return AuthenticationMethodOperationResult(
+                id=method.id,
+                type=method.type,
+                display_name=method.display_name,
+                status="failed",
+                reason="Metodo MFA padrao nao pode ser removido.",
+            )
+        return AuthenticationMethodOperationResult(
+            id=method.id,
+            type=method.type,
+            display_name=method.display_name,
+            status="deleted",
+        )
+
+    async def revoke_sign_in_sessions(self, user_id: str) -> bool:
+        self.sessions_revoked = True
+        return True
+
+
+class CapturingAuditLogger(AuditLogger):
+    def __init__(self) -> None:
+        self.events: list[dict] = []
+
+    def log_workflow_event(self, tool_name: str, **kwargs) -> None:
+        self.events.append({"tool_name": tool_name, **kwargs})
+
+
+def make_workflow(authentication_method_service: FakeAuthenticationMethodService):
+    audit_logger = CapturingAuditLogger()
+    workflow = ResetMfaWorkflow(
+        user_service=FakeUserService(),
+        authentication_method_service=authentication_method_service,
+        workflow_store=WorkflowStore(),
+        authorizer=Authorizer(),
+        audit_logger=audit_logger,
+    )
+    return workflow, audit_logger
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_start_never_deletes_or_revokes():
+    authentication_methods = FakeAuthenticationMethodService()
+    workflow, _ = make_workflow(authentication_methods)
+
+    response = await workflow.start("alice@example.com")
+
+    assert response.success is True
+    assert response.current_step == STEP_DELETE_AUTHENTICATION_METHODS
+    assert response.phone_methods_found == 1
+    assert response.mfa_methods_found == 1
+    assert response.confirmation_required is True
+    assert authentication_methods.deleted_phone_ids == []
+    assert authentication_methods.deleted_mfa_ids == []
+    assert authentication_methods.sessions_revoked is False
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_rejects_revoke_sessions_before_delete_step():
+    authentication_methods = FakeAuthenticationMethodService()
+    workflow, _ = make_workflow(authentication_methods)
+    start = await workflow.start("alice@example.com")
+
+    response = await workflow.execute_step(start.reset_request_id, STEP_REVOKE_SESSIONS, True)
+
+    assert response.success is False
+    assert response.next_step == STEP_DELETE_AUTHENTICATION_METHODS
+    assert authentication_methods.sessions_revoked is False
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_delete_step_continues_after_individual_failure():
+    authentication_methods = FakeAuthenticationMethodService()
+    authentication_methods.fail_mfa_delete = True
+    workflow, _ = make_workflow(authentication_methods)
+    start = await workflow.start("alice@example.com")
+
+    response = await workflow.execute_step(
+        start.reset_request_id,
+        STEP_DELETE_AUTHENTICATION_METHODS,
+        True,
+    )
+
+    assert response.success is False
+    assert response.next_step == STEP_REVOKE_SESSIONS
+    assert response.deleted_phone_methods[0].id == "phone-1"
+    assert response.failed_methods[0].id == "mfa-1"
+    assert authentication_methods.sessions_revoked is False
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_revoke_sessions_completes_workflow():
+    authentication_methods = FakeAuthenticationMethodService()
+    workflow, _ = make_workflow(authentication_methods)
+    start = await workflow.start("alice@example.com")
+    await workflow.execute_step(start.reset_request_id, STEP_DELETE_AUTHENTICATION_METHODS, True)
+
+    response = await workflow.execute_step(start.reset_request_id, STEP_REVOKE_SESSIONS, True)
+    status = await workflow.status(start.reset_request_id)
+
+    assert response.success is True
+    assert response.message == "Reset MFA concluido."
+    assert response.sessions_revoked is True
+    assert status.status == "completed"
+    assert status.sessions_revoked is True

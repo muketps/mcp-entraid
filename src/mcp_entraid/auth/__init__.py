@@ -1,0 +1,1 @@
+"""Autenticação Microsoft Graph."""

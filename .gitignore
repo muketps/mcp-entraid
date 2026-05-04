@@ -1,0 +1,52 @@
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+.python-version
+.coverage
+.coverage.*
+
+.env
+.env.*
+!.env.example
+
+.pytest_cache/
+.pytest_cache-*/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.nox/
+.tox/
+.hypothesis/
+
+dist/
+build/
+*.egg-info/
+pip-wheel-metadata/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS and filesystem noise
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local logs and runtime files
+*.log
+logs/
+*.pid
+*.pid.lock
+
+# OneDrive / Windows sync artifacts
+~$*
+*.tmp
+*.bak
+pytest-cache-files-*/
