@@ -125,8 +125,12 @@ async def test_reset_mfa_start_never_deletes_or_revokes():
     workflow, _ = make_workflow(authentication_methods)
 
     response = await workflow.start("alice@example.com")
+    payload = response.model_dump(mode="json")
 
     assert response.success is True
+    assert response.user_upn == "alice@example.com"
+    assert "user_id" not in payload
+    assert "user_principal_name" not in payload
     assert response.current_step == STEP_DELETE_AUTHENTICATION_METHODS
     assert response.phone_methods_found == 1
     assert response.mfa_methods_found == 1
@@ -178,8 +182,16 @@ async def test_reset_mfa_revoke_sessions_completes_workflow():
 
     response = await workflow.execute_step(start.reset_request_id, STEP_REVOKE_SESSIONS, True)
     status = await workflow.status(start.reset_request_id)
+    response_payload = response.model_dump(mode="json")
+    status_payload = status.model_dump(mode="json")
 
     assert response.success is True
+    assert response.user_upn == "alice@example.com"
+    assert status.user_upn == "alice@example.com"
+    assert "user_id" not in response_payload
+    assert "user_principal_name" not in response_payload
+    assert "user_id" not in status_payload
+    assert "user_principal_name" not in status_payload
     assert response.message == "Reset MFA concluido."
     assert response.sessions_revoked is True
     assert status.status == "completed"

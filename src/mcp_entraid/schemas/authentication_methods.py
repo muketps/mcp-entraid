@@ -24,8 +24,7 @@ class AuthenticationMethodOperationResult(BaseModel):
 class ResetMfaStartResponse(BaseModel):
     success: bool
     reset_request_id: str
-    user_id: str
-    user_principal_name: str
+    user_upn: str
     user_display_name: str | None = None
     phone_methods: list[AuthenticationMethodSummary]
     mfa_methods: list[AuthenticationMethodSummary]
@@ -41,8 +40,7 @@ class ResetMfaStartResponse(BaseModel):
 class ResetMfaStepResponse(BaseModel):
     success: bool
     reset_request_id: str
-    user_id: str
-    user_principal_name: str
+    user_upn: str
     user_display_name: str | None = None
     step_completed: str | None = None
     next_step: str | None = None
@@ -60,8 +58,7 @@ class ResetMfaStepResponse(BaseModel):
 class ResetMfaStatusResponse(BaseModel):
     success: bool
     reset_request_id: str
-    user_id: str
-    user_principal_name: str
+    user_upn: str
     user_display_name: str | None = None
     status: str
     current_step: str | None = None

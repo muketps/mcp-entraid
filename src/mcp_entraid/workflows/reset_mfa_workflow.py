@@ -64,8 +64,7 @@ class ResetMfaWorkflow:
             return ResetMfaStartResponse(
                 success=False,
                 reset_request_id="",
-                user_id="",
-                user_principal_name="",
+                user_upn="",
                 user_display_name=None,
                 phone_methods=[],
                 mfa_methods=[],
@@ -96,8 +95,7 @@ class ResetMfaWorkflow:
             return ResetMfaStartResponse(
                 success=False,
                 reset_request_id="",
-                user_id=user_id,
-                user_principal_name=user_principal_name,
+                user_upn=user_principal_name,
                 user_display_name=user_display_name,
                 phone_methods=[],
                 mfa_methods=[],
@@ -145,8 +143,7 @@ class ResetMfaWorkflow:
         return ResetMfaStartResponse(
             success=True,
             reset_request_id=reset_request_id,
-            user_id=user_id,
-            user_principal_name=user_principal_name,
+            user_upn=user_principal_name,
             user_display_name=user_display_name,
             phone_methods=phone_methods,
             mfa_methods=mfa_methods,
@@ -267,8 +264,7 @@ class ResetMfaWorkflow:
             return ResetMfaStatusResponse(
                 success=False,
                 reset_request_id=reset_request_id,
-                user_id="",
-                user_principal_name="",
+                user_upn="",
                 user_display_name=None,
                 status="not_found",
                 current_step=None,
@@ -353,8 +349,7 @@ class ResetMfaWorkflow:
         return ResetMfaStepResponse(
             success=success,
             reset_request_id=state.reset_request_id,
-            user_id=state.user_id,
-            user_principal_name=state.user_principal_name,
+            user_upn=state.user_principal_name,
             user_display_name=state.user_display_name,
             step_completed=STEP_DELETE_AUTHENTICATION_METHODS,
             next_step=STEP_REVOKE_SESSIONS,
@@ -429,8 +424,7 @@ class ResetMfaWorkflow:
         return ResetMfaStepResponse(
             success=False,
             reset_request_id=reset_request_id,
-            user_id="",
-            user_principal_name="",
+            user_upn="",
             user_display_name=None,
             step_completed=None,
             next_step=None,
@@ -459,8 +453,7 @@ class ResetMfaWorkflow:
         return ResetMfaStepResponse(
             success=success,
             reset_request_id=state.reset_request_id,
-            user_id=state.user_id,
-            user_principal_name=state.user_principal_name,
+            user_upn=state.user_principal_name,
             user_display_name=state.user_display_name,
             step_completed=step_completed,
             next_step=next_step,
@@ -485,8 +478,7 @@ class ResetMfaWorkflow:
         return ResetMfaStatusResponse(
             success=success,
             reset_request_id=state.reset_request_id,
-            user_id=state.user_id,
-            user_principal_name=state.user_principal_name,
+            user_upn=state.user_principal_name,
             user_display_name=state.user_display_name,
             status=state.status,
             current_step=state.current_step,

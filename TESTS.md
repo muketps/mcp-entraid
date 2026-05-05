@@ -78,6 +78,7 @@ Valida o workflow guiado e com estado do reset de MFA.
 O que já cobre:
 
 - `start()` apenas lista os métodos e inicializa o workflow
+- as respostas públicas do workflow usam `user_upn`, sem expor `user_id` como chave principal
 - `start()` não deleta métodos nem revoga sessões
 - a etapa `delete_authentication_methods` precisa acontecer antes de `revoke_sign_in_sessions`
 - o workflow continua mesmo se uma exclusão individual falhar

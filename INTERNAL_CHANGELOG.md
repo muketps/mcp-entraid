@@ -13,6 +13,23 @@ Usage rule:
 - Always list changed files explicitly.
 - Keep entries in reverse chronological order, newest first.
 
+## 2026-05-05 - MFA public identity normalized to UPN
+
+Summary:
+- Updated public MFA workflow responses to use `user_upn` as the exposed user identity, keeping the Entra GUID only in internal workflow state and Graph calls.
+
+Changed files:
+- [src/mcp_entraid/schemas/authentication_methods.py](src/mcp_entraid/schemas/authentication_methods.py)
+- [src/mcp_entraid/workflows/reset_mfa_workflow.py](src/mcp_entraid/workflows/reset_mfa_workflow.py)
+- [tests/test_reset_mfa_workflow.py](tests/test_reset_mfa_workflow.py)
+- [README.md](README.md)
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The public `entra_reset_user_mfa_*` responses no longer expose `user_id` or `user_principal_name` as the primary identity fields.
+- The automated suite passes with `34 passed`.
+
 ## 2026-05-05 - Group lookup tool added
 
 Summary:

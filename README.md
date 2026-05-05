@@ -117,5 +117,5 @@ As rotinas de runbook existem no projeto como implementação interna, mas não 
 ## Observações
 
 - Todas as tools públicas usam `user_upn` como chave principal para usuários.
-- Os retornos expõem `user_id`, `user_principal_name` e `user_display_name` quando aplicável.
+- Os retornos públicos usam `user_upn` e `user_display_name` quando aplicável; GUIDs do Entra ficam restritos ao uso interno quando necessários.
 - O servidor local roda em `http://127.0.0.1:8000`.
