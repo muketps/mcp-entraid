@@ -2,7 +2,7 @@
 
 Este documento descreve a suíte automatizada atual do `mcp-entraid` e o que cada arquivo de teste já validou.
 
-No momento, a suíte passa com `34 passed`.
+No momento, a suíte passa com `38 passed`.
 
 ## O que a suíte cobre
 
@@ -71,6 +71,18 @@ O que já cobre:
 - os números de telefone são mascarados nos resumos retornados
 - um `404` ao excluir um método de autenticação vira um resultado de falha, sem quebrar o fluxo
 
+### `tests/test_authentication_method_tools.py`
+
+Valida as tools públicas do fluxo de reset de MFA.
+
+O que já cobre:
+
+- a façade `entra_reset_mfa` é a única tool pública de MFA, evitando chamadas diretas que dependam de `reset_request_id`
+- a ação `start` roteia para o início do workflow usando `user_upn`
+- a ação `confirm` confirma a remoção por `user_upn`
+- a ação `status` roteia para a consulta de status por `reset_request_id`
+- campos obrigatórios ausentes retornam erro estruturado
+
 ### `tests/test_reset_mfa_workflow.py`
 
 Valida o workflow guiado e com estado do reset de MFA.
@@ -78,11 +90,14 @@ Valida o workflow guiado e com estado do reset de MFA.
 O que já cobre:
 
 - `start()` apenas lista os métodos e inicializa o workflow
+- `start()` é idempotente enquanto já existe workflow ativo para o mesmo `user_upn`
+- `start()` informa quais telefones e métodos MFA estão cadastrados
+- `confirm_next_step()` remove os métodos e revoga sessões a partir do `user_upn`
 - as respostas públicas do workflow usam `user_upn`, sem expor `user_id` como chave principal
 - `start()` não deleta métodos nem revoga sessões
-- a etapa `delete_authentication_methods` precisa acontecer antes de `revoke_sign_in_sessions`
+- a etapa `delete_authentication_methods` revoga sessões automaticamente após processar os métodos
 - o workflow continua mesmo se uma exclusão individual falhar
-- a conclusão das exclusões ainda permite avançar para revogação de sessões
+- a conclusão retorna mensagem padrão orientando recadastro de MFA
 - revogar sessões marca o workflow como concluído
 - o status do workflow reflete o estado final após a última etapa
 

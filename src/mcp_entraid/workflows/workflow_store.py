@@ -18,6 +18,22 @@ class WorkflowStore:
             return None
         return state.model_copy(deep=True)
 
+    def find_active_reset_mfa_state_by_upn(self, user_upn: str) -> ResetMfaWorkflowState | None:
+        normalized_upn = (user_upn or "").strip().lower()
+        if not normalized_upn:
+            return None
+
+        for state in reversed(list(self._reset_mfa_states.values())):
+            if state.user_principal_name.lower() != normalized_upn:
+                continue
+            if state.status in {"completed", "cancelled", "expired"}:
+                continue
+            if self.is_expired(state):
+                self.mark_expired(state)
+                continue
+            return state.model_copy(deep=True)
+        return None
+
     def is_expired(self, state: ResetMfaWorkflowState) -> bool:
         return self._parse_datetime(state.expires_at) <= datetime.now(timezone.utc)
 

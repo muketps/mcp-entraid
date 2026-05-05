@@ -134,10 +134,44 @@ async def test_reset_mfa_start_never_deletes_or_revokes():
     assert response.current_step == STEP_DELETE_AUTHENTICATION_METHODS
     assert response.phone_methods_found == 1
     assert response.mfa_methods_found == 1
+    assert "***-1234" in response.confirmation_message
+    assert "Microsoft Authenticator" in response.confirmation_message
     assert response.confirmation_required is True
     assert authentication_methods.deleted_phone_ids == []
     assert authentication_methods.deleted_mfa_ids == []
     assert authentication_methods.sessions_revoked is False
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_start_is_idempotent_while_workflow_is_active():
+    authentication_methods = FakeAuthenticationMethodService()
+    workflow, _ = make_workflow(authentication_methods)
+
+    first = await workflow.start("alice@example.com")
+    second = await workflow.start("alice@example.com")
+
+    assert second.reset_request_id == first.reset_request_id
+    assert second.current_step == STEP_DELETE_AUTHENTICATION_METHODS
+    assert "ja iniciado" in second.confirmation_message
+
+
+@pytest.mark.asyncio
+async def test_reset_mfa_confirm_next_step_uses_active_workflow_by_upn():
+    authentication_methods = FakeAuthenticationMethodService()
+    workflow, _ = make_workflow(authentication_methods)
+    start = await workflow.start("alice@example.com")
+
+    response = await workflow.confirm_next_step("alice@example.com")
+
+    assert response.success is True
+    assert response.reset_request_id == start.reset_request_id
+    assert response.step_completed == STEP_DELETE_AUTHENTICATION_METHODS
+    assert response.next_step is None
+    assert response.confirmation_required is False
+    assert response.sessions_revoked is True
+    assert "Pronto! O MFA foi removido com sucesso." in response.message
+    assert authentication_methods.deleted_phone_ids == ["phone-1"]
+    assert authentication_methods.deleted_mfa_ids == ["mfa-1"]
 
 
 @pytest.mark.asyncio
@@ -167,20 +201,20 @@ async def test_reset_mfa_delete_step_continues_after_individual_failure():
     )
 
     assert response.success is False
-    assert response.next_step == STEP_REVOKE_SESSIONS
+    assert response.next_step is None
     assert response.deleted_phone_methods[0].id == "phone-1"
     assert response.failed_methods[0].id == "mfa-1"
-    assert authentication_methods.sessions_revoked is False
+    assert response.sessions_revoked is True
+    assert response.confirmation_required is False
+    assert authentication_methods.sessions_revoked is True
 
 
 @pytest.mark.asyncio
-async def test_reset_mfa_revoke_sessions_completes_workflow():
+async def test_reset_mfa_delete_step_revokes_sessions_and_completes_workflow():
     authentication_methods = FakeAuthenticationMethodService()
     workflow, _ = make_workflow(authentication_methods)
     start = await workflow.start("alice@example.com")
-    await workflow.execute_step(start.reset_request_id, STEP_DELETE_AUTHENTICATION_METHODS, True)
-
-    response = await workflow.execute_step(start.reset_request_id, STEP_REVOKE_SESSIONS, True)
+    response = await workflow.execute_step(start.reset_request_id, STEP_DELETE_AUTHENTICATION_METHODS, True)
     status = await workflow.status(start.reset_request_id)
     response_payload = response.model_dump(mode="json")
     status_payload = status.model_dump(mode="json")
@@ -192,7 +226,7 @@ async def test_reset_mfa_revoke_sessions_completes_workflow():
     assert "user_principal_name" not in response_payload
     assert "user_id" not in status_payload
     assert "user_principal_name" not in status_payload
-    assert response.message == "Reset MFA concluido."
+    assert "suas aplicações Microsoft pedirão que você cadastre novamente" in response.message
     assert response.sessions_revoked is True
     assert status.status == "completed"
     assert status.sessions_revoked is True

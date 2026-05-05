@@ -13,6 +13,61 @@ Usage rule:
 - Always list changed files explicitly.
 - Keep entries in reverse chronological order, newest first.
 
+## 2026-05-05 - MFA reset revokes sessions automatically
+
+Summary:
+- Changed the MFA reset confirmation flow so one confirmation removes authentication methods and revokes sign-in sessions automatically.
+
+Changed files:
+- [src/mcp_entraid/workflows/reset_mfa_workflow.py](src/mcp_entraid/workflows/reset_mfa_workflow.py)
+- [tests/test_authentication_method_tools.py](tests/test_authentication_method_tools.py)
+- [tests/test_reset_mfa_workflow.py](tests/test_reset_mfa_workflow.py)
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The `start` response now includes a clearer confirmation message listing registered phone and Microsoft Authenticator/MFA methods.
+- The confirmation response no longer asks for a second authorization to revoke sessions.
+- The public facade now exposes only `start`, `confirm`, and `status` actions.
+- A default post-reset message tells the operator to guide the user through MFA recadastro.
+
+## 2026-05-05 - MFA confirmation flow hardened
+
+Summary:
+- Made the MFA reset flow resilient to repeated `start` calls, added a simple confirmation action by `user_upn`, and kept only the facade tool public for MFA.
+
+Changed files:
+- [src/mcp_entraid/workflows/workflow_store.py](src/mcp_entraid/workflows/workflow_store.py)
+- [src/mcp_entraid/workflows/reset_mfa_workflow.py](src/mcp_entraid/workflows/reset_mfa_workflow.py)
+- [src/mcp_entraid/tools/authentication_methods.py](src/mcp_entraid/tools/authentication_methods.py)
+- [tests/test_authentication_method_tools.py](tests/test_authentication_method_tools.py)
+- [tests/test_reset_mfa_workflow.py](tests/test_reset_mfa_workflow.py)
+- [README.md](README.md)
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- `entra_reset_mfa(action="start", user_upn=...)` now reuses the active workflow instead of creating a new reset request for the same user.
+- `entra_reset_mfa(action="confirm", user_upn=...)` confirms the next pending step without requiring the client to resend `reset_request_id`.
+- The dedicated MFA workflow functions remain internal and are no longer registered as public tools.
+- This reduces repeated confirmation loops in MCP clients that do not preserve tool context well.
+
+## 2026-05-05 - MFA reset facade tool added
+
+Summary:
+- Added a single public `entra_reset_mfa` facade for the guided MFA reset flow.
+
+Changed files:
+- [src/mcp_entraid/tools/authentication_methods.py](src/mcp_entraid/tools/authentication_methods.py)
+- [tests/test_authentication_method_tools.py](tests/test_authentication_method_tools.py)
+- [README.md](README.md)
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- This keeps the guided reset flow intact but gives MCP clients a single obvious entrypoint for MFA reset.
+- The facade still requires `confirmed=True` for execution steps and delegates to the same underlying workflow.
+
 ## 2026-05-05 - MFA public identity normalized to UPN
 
 Summary:

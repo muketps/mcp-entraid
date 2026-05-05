@@ -94,9 +94,7 @@ tools -> services -> graph client -> Microsoft Graph
 
 ### Reset MFA guiado
 
-- `entra_reset_user_mfa_start(user_upn: str)`
-- `entra_reset_user_mfa_execute_step(reset_request_id: str, step: str, confirmed: bool)`
-- `entra_reset_user_mfa_status(reset_request_id: str)`
+- `entra_reset_mfa(action: "start" | "confirm" | "status", user_upn: str | None = None, reset_request_id: str | None = None)`
 
 ### Grupos
 
