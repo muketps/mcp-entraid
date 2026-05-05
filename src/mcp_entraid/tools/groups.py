@@ -16,6 +16,43 @@ def register_group_tools(
     audit_logger: AuditLogger,
 ) -> None:
     @mcp.tool
+    async def entra_find_groups(query: str, exact_match: bool = True, max_results: int = 10) -> dict[str, Any]:
+        await authorizer.require_group_read_permission()
+        audit_logger.log_group_query(
+            tool_name="entra_find_groups",
+            status="requested",
+            count=None,
+        )
+        try:
+            response = await group_service.find_groups(
+                query=query,
+                exact_match=exact_match,
+                max_results=max_results,
+            )
+        except ValueError as exc:
+            audit_logger.log_group_query(
+                tool_name="entra_find_groups",
+                status="invalid_request",
+                count=0,
+            )
+            return {
+                "success": False,
+                "query": (query or "").strip(),
+                "exact_match": exact_match,
+                "groups_count": 0,
+                "groups": [],
+                "message": str(exc),
+                "request_id": None,
+            }
+        audit_logger.log_group_query(
+            tool_name="entra_find_groups",
+            status="success" if response.success else "failed",
+            count=response.groups_count,
+            request_id=response.request_id,
+        )
+        return response.model_dump(mode="json")
+
+    @mcp.tool
     async def entra_check_required_groups_by_platform(user_upn: str, platform: str) -> dict[str, Any]:
         await authorizer.require_group_read_permission()
         audit_logger.log_group_query(

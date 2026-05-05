@@ -13,6 +13,25 @@ Usage rule:
 - Always list changed files explicitly.
 - Keep entries in reverse chronological order, newest first.
 
+## 2026-05-05 - Group lookup tool added
+
+Summary:
+- Added a public MCP tool to find Entra groups by display name or GUID and return normalized group metadata including the group ID.
+
+Changed files:
+- [src/mcp_entraid/utils/odata.py](src/mcp_entraid/utils/odata.py)
+- [src/mcp_entraid/schemas/groups.py](src/mcp_entraid/schemas/groups.py)
+- [src/mcp_entraid/services/group_service.py](src/mcp_entraid/services/group_service.py)
+- [src/mcp_entraid/tools/groups.py](src/mcp_entraid/tools/groups.py)
+- [tests/test_group_service.py](tests/test_group_service.py)
+- [README.md](README.md)
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The new `entra_find_groups` tool supports exact display-name matching, prefix matching, GUID lookup, result limits, and OData string escaping.
+- The automated suite now passes with `34 passed`.
+
 ## 2026-05-04 - Test coverage documentation added
 
 Summary:

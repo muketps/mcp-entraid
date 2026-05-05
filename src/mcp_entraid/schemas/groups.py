@@ -72,3 +72,13 @@ class ListGroupMembersResponse(BaseModel):
     members: list[EntraGroupMemberSummary]
     message: str
     request_id: str | None = None
+
+
+class FindGroupsResponse(BaseModel):
+    success: bool
+    query: str
+    exact_match: bool
+    groups_count: int
+    groups: list[EntraGroupSummary]
+    message: str
+    request_id: str | None = None

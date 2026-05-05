@@ -100,6 +100,7 @@ tools -> services -> graph client -> Microsoft Graph
 
 ### Grupos
 
+- `entra_find_groups(query: str, exact_match: bool = True, max_results: int = 10)`
 - `entra_check_required_groups_by_platform(user_upn: str, platform: str)`
 - `entra_list_user_groups(user_upn: str, transitive: bool = True)`
 - `entra_list_group_members(group_id: str, transitive: bool = True)`

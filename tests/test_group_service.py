@@ -37,8 +37,37 @@ class FakeUserService:
 class FakeGraphClient:
     def __init__(self) -> None:
         self.absolute_calls: list[str] = []
+        self.calls: list[tuple[str, dict[str, str] | None]] = []
 
     async def get(self, path: str, params: dict[str, str] | None = None):
+        self.calls.append((path, params))
+        if path == "/groups":
+            return {
+                "value": [
+                    {
+                        "id": "00000000-0000-0000-0000-000000000020",
+                        "displayName": "GRP-Financeiro-Leitura",
+                        "mailEnabled": False,
+                        "securityEnabled": True,
+                        "groupTypes": [],
+                    },
+                    {
+                        "id": "00000000-0000-0000-0000-000000000021",
+                        "displayName": "GRP-Financeiro-Admin",
+                        "mailEnabled": False,
+                        "securityEnabled": True,
+                        "groupTypes": [],
+                    },
+                ],
+            }
+        if path == "/groups/00000000-0000-0000-0000-000000000020":
+            return {
+                "id": "00000000-0000-0000-0000-000000000020",
+                "displayName": "GRP-Financeiro-Leitura",
+                "mailEnabled": False,
+                "securityEnabled": True,
+                "groupTypes": [],
+            }
         if path.endswith("/memberOf/microsoft.graph.group"):
             return {
                 "value": [
@@ -174,6 +203,63 @@ async def test_list_group_members_supports_pagination_and_filters_to_users():
 
 
 @pytest.mark.asyncio
+async def test_find_groups_by_exact_display_name_returns_group_ids():
+    graph_client = FakeGraphClient()
+    service = GroupService(graph_client, FakeUserService())
+
+    response = await service.find_groups("GRP-Financeiro-Leitura")
+
+    assert response.success is True
+    assert response.groups_count == 2
+    assert response.groups[0].id == "00000000-0000-0000-0000-000000000020"
+    assert graph_client.calls[-1] == (
+        "/groups",
+        {
+            "$select": "id,displayName,mailEnabled,securityEnabled,groupTypes",
+            "$filter": "displayName eq 'GRP-Financeiro-Leitura'",
+            "$top": "10",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_find_groups_by_prefix_escapes_odata_and_honors_limit():
+    graph_client = FakeGraphClient()
+    service = GroupService(graph_client, FakeUserService())
+
+    response = await service.find_groups("GRP-Financeiro's", exact_match=False, max_results=1)
+
+    assert response.success is True
+    assert response.groups_count == 1
+    assert response.groups[0].display_name == "GRP-Financeiro-Leitura"
+    assert graph_client.absolute_calls == []
+    assert graph_client.calls[-1] == (
+        "/groups",
+        {
+            "$select": "id,displayName,mailEnabled,securityEnabled,groupTypes",
+            "$filter": "startswith(displayName,'GRP-Financeiro''s')",
+            "$top": "1",
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_find_groups_by_guid_uses_direct_group_lookup():
+    graph_client = FakeGraphClient()
+    service = GroupService(graph_client, FakeUserService())
+
+    response = await service.find_groups("00000000-0000-0000-0000-000000000020")
+
+    assert response.success is True
+    assert response.groups_count == 1
+    assert response.groups[0].display_name == "GRP-Financeiro-Leitura"
+    assert graph_client.calls[-1] == (
+        "/groups/00000000-0000-0000-0000-000000000020",
+        {"$select": "id,displayName,mailEnabled,securityEnabled,groupTypes"},
+    )
+
+
+@pytest.mark.asyncio
 async def test_group_service_rejects_wildcards_and_invalid_ids():
     service = GroupService(FakeGraphClient(), FakeUserService())
 
@@ -191,6 +277,12 @@ async def test_group_service_rejects_wildcards_and_invalid_ids():
 
     with pytest.raises(ValueError):
         await service.check_required_groups_by_platform("alice@example.com", "")
+
+    with pytest.raises(ValueError):
+        await service.find_groups("*")
+
+    with pytest.raises(ValueError):
+        await service.find_groups("GRP-Financeiro", max_results=51)
 
 
 @pytest.mark.asyncio

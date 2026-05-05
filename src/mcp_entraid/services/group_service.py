@@ -11,13 +11,14 @@ from mcp_entraid.graph.endpoints import GROUP_MEMBER_SELECT_FIELDS, GROUP_SELECT
 from mcp_entraid.schemas.groups import (
     EntraGroupMemberSummary,
     EntraGroupSummary,
+    FindGroupsResponse,
     GroupComplianceItem,
     ListGroupMembersResponse,
     ListUserGroupsResponse,
     RequiredGroup,
     RequiredGroupsByPlatformResponse,
 )
-from mcp_entraid.utils.odata import encode_path_segment, select_params
+from mcp_entraid.utils.odata import encode_path_segment, escape_odata_string, select_params
 
 ALLOWED_PLATFORMS = {"windows", "linux", "mac", "mobile"}
 BLOCKED_COLLECTION_VALUES = {"all", "*", "todos", "everyone"}
@@ -184,6 +185,56 @@ class GroupService:
             request_id=None,
         )
 
+    async def find_groups(
+        self,
+        query: str,
+        exact_match: bool = True,
+        max_results: int = 10,
+    ) -> FindGroupsResponse:
+        normalized_query = self._validate_group_query(query)
+        normalized_max_results = self._validate_max_results(max_results)
+
+        try:
+            if self._looks_like_guid(normalized_query):
+                payload = await self._graph_client.get(
+                    f"/groups/{encode_path_segment(normalized_query)}",
+                    params=select_params(GROUP_SELECT_FIELDS),
+                )
+                groups = self._map_groups([payload])
+            else:
+                escaped_query = escape_odata_string(normalized_query)
+                filter_expression = (
+                    f"displayName eq '{escaped_query}'"
+                    if exact_match
+                    else f"startswith(displayName,'{escaped_query}')"
+                )
+                params = {
+                    **select_params(GROUP_SELECT_FIELDS),
+                    "$filter": filter_expression,
+                    "$top": str(normalized_max_results),
+                }
+                groups = await self._collect_paged_groups("/groups", params, limit=normalized_max_results)
+        except GraphAPIError as exc:
+            return FindGroupsResponse(
+                success=False,
+                query=normalized_query,
+                exact_match=exact_match,
+                groups_count=0,
+                groups=[],
+                message=str(exc),
+                request_id=exc.request_id,
+            )
+
+        return FindGroupsResponse(
+            success=True,
+            query=normalized_query,
+            exact_match=exact_match,
+            groups_count=len(groups),
+            groups=groups,
+            message="Grupos retornados com sucesso." if groups else "Nenhum grupo encontrado.",
+            request_id=None,
+        )
+
     async def _list_groups_for_user(self, user_id: str, transitive: bool) -> list[EntraGroupSummary]:
         path = (
             f"/users/{encode_path_segment(user_id)}/transitiveMemberOf/microsoft.graph.group"
@@ -206,11 +257,14 @@ class GroupService:
         self,
         path: str,
         params: dict[str, str],
+        limit: int | None = None,
     ) -> list[EntraGroupSummary]:
         items: list[EntraGroupSummary] = []
         payload = await self._graph_client.get(path, params=params)
         while True:
             items.extend(self._map_groups(payload.get("value", [])))
+            if limit is not None and len(items) >= limit:
+                return items[:limit]
             next_link = payload.get("@odata.nextLink")
             if not next_link:
                 break
@@ -284,6 +338,26 @@ class GroupService:
         except ValueError as exc:
             raise ValueError("group_id deve ser um GUID valido.") from exc
         return normalized
+
+    def _validate_group_query(self, query: str) -> str:
+        normalized = (query or "").strip()
+        if not normalized:
+            raise ValueError("Informe um nome ou GUID de grupo valido.")
+        if normalized.lower() in BLOCKED_COLLECTION_VALUES:
+            raise ValueError("Informe um nome ou GUID de grupo real. Valores amplos nao sao permitidos.")
+        return normalized
+
+    def _validate_max_results(self, max_results: int) -> int:
+        if max_results < 1 or max_results > 50:
+            raise ValueError("max_results deve estar entre 1 e 50.")
+        return max_results
+
+    def _looks_like_guid(self, value: str) -> bool:
+        try:
+            UUID(value)
+        except ValueError:
+            return False
+        return True
 
     def _error_required_groups(
         self,

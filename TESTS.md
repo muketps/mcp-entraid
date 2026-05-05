@@ -2,7 +2,7 @@
 
 Este documento descreve a suíte automatizada atual do `mcp-entraid` e o que cada arquivo de teste já validou.
 
-No momento, a suíte passa com `31 passed`.
+No momento, a suíte passa com `34 passed`.
 
 ## O que a suíte cobre
 
@@ -98,6 +98,10 @@ O que já cobre:
   - `missing`
 - a resposta de conformidade conta corretamente grupos diretos, herdados e ausentes
 - a listagem de grupos do usuário suporta paginação
+- a busca de grupos por display name retorna IDs e metadados normalizados
+- a busca de grupos também aceita GUID e usa consulta direta
+- filtros OData gerados para display name escapam aspas simples
+- limites inválidos de resultado são rejeitados
 - a listagem de membros de grupo suporta paginação
 - a listagem de membros filtra apenas usuários
 - curingas e identificadores inválidos são rejeitados
@@ -209,4 +213,3 @@ Este arquivo deve ser atualizado sempre que:
 - uma regra de segurança mudar
 - um workflow ganhar uma nova etapa
 - a suíte começar a cobrir um novo padrão de abuso
-
