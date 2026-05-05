@@ -33,13 +33,16 @@ class ArmTokenProvider:
         return token.access_token
 
     async def _request_token(self) -> CachedArmToken:
-        if not self._settings.azure_tenant_id or not self._settings.azure_client_id or not self._settings.azure_client_secret:
+        tenant_id = self._settings.azure_tenant_id_effective
+        client_id = self._settings.azure_client_id_effective
+        client_secret = self._settings.azure_client_secret_effective
+        if not tenant_id or not client_id or not client_secret:
             raise ArmTokenError("Configuração Azure incompleta para autenticação ARM.")
 
-        url = f"https://login.microsoftonline.com/{self._settings.azure_tenant_id}/oauth2/v2.0/token"
+        url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
         data = {
-            "client_id": self._settings.azure_client_id,
-            "client_secret": self._settings.azure_client_secret,
+            "client_id": client_id,
+            "client_secret": client_secret,
             "scope": "https://management.azure.com/.default",
             "grant_type": "client_credentials",
         }

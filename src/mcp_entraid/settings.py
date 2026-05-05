@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     azure_subscription_id: str | None = Field(default=None, alias="AZURE_SUBSCRIPTION_ID")
     azure_resource_group_name: str | None = Field(default=None, alias="AZURE_RESOURCE_GROUP_NAME")
     azure_automation_account_name: str | None = Field(default=None, alias="AZURE_AUTOMATION_ACCOUNT_NAME")
+    azure_unlock_user_runbook_name: str | None = Field(default=None, alias="AZURE_UNLOCK_USER_RUNBOOK_NAME")
     azure_automation_api_version: str = Field(
         default="2024-10-23",
         alias="AZURE_AUTOMATION_API_VERSION",
@@ -47,6 +48,18 @@ class Settings(BaseSettings):
     @cached_property
     def azure_allowed_runbooks_list(self) -> list[str]:
         return [item.strip() for item in self.azure_allowed_runbooks.split(",") if item.strip()]
+
+    @property
+    def azure_tenant_id_effective(self) -> str | None:
+        return self.tenant_id
+
+    @property
+    def azure_client_id_effective(self) -> str | None:
+        return self.client_id
+
+    @property
+    def azure_client_secret_effective(self) -> str | None:
+        return self.client_secret
 
     @cached_property
     def azure_runbook_parameter_allowlist_map(self) -> dict[str, list[str]]:
@@ -74,9 +87,9 @@ class Settings(BaseSettings):
 
     def has_azure_runbook_config(self) -> bool:
         required = [
-            self.azure_tenant_id,
-            self.azure_client_id,
-            self.azure_client_secret,
+            self.azure_tenant_id_effective,
+            self.azure_client_id_effective,
+            self.azure_client_secret_effective,
             self.azure_subscription_id,
             self.azure_resource_group_name,
             self.azure_automation_account_name,

@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+import re
+
 from mcp_entraid.azure.automation_client import AzureAutomationClient, AzureAutomationError
 from mcp_entraid.audit.audit_logger import AuditLogger
 from mcp_entraid.schemas.runbooks import RunbookExecutionResponse
 from mcp_entraid.security.authorizer import Authorizer
 from mcp_entraid.settings import Settings
+
+BLOCKED_USER_VALUES = {"*", "all", "todos", "everyone", "tenant"}
+UPN_PATTERN = re.compile(r"^[^@\s,;|]+@[^@\s,;|]+\.[^@\s,;|]+$")
 
 
 class RunbookService:
@@ -135,6 +140,37 @@ class RunbookService:
             request_id=None,
         )
 
+    async def unlock_user(
+        self,
+        user_upn: str,
+        wait_for_completion: bool = True,
+        timeout_seconds: int = 60,
+    ) -> RunbookExecutionResponse:
+        runbook_name = self._settings.azure_unlock_user_runbook_name or ""
+        try:
+            normalized_user_upn = self._validate_user_upn(user_upn)
+            if not runbook_name:
+                raise AzureAutomationError("Runbook de desbloqueio nao configurado.")
+            return await self.execute_runbook(
+                runbook_name=runbook_name,
+                parameters={"UPN": normalized_user_upn},
+                wait_for_completion=wait_for_completion,
+                timeout_seconds=timeout_seconds,
+            )
+        except (AzureAutomationError, ValueError) as exc:
+            return RunbookExecutionResponse(
+                success=False,
+                runbook_name=runbook_name,
+                job_name="",
+                job_id=None,
+                status="Failed",
+                output=None,
+                streams=[],
+                timed_out=False,
+                message=str(exc),
+                request_id=None,
+            )
+
     async def get_runbook_output(self, job_name: str, include_streams: bool = True) -> RunbookExecutionResponse:
         self._validate_azure_config()
         await self._authorizer.require_execute_runbook_permission("")
@@ -202,3 +238,18 @@ class RunbookService:
             else:
                 masked[key] = value
         return masked
+
+    def _validate_user_upn(self, user_upn: str) -> str:
+        if not isinstance(user_upn, str):
+            raise ValueError("user_upn deve ser uma string.")
+
+        normalized = user_upn.strip()
+        if not normalized:
+            raise ValueError("user_upn e obrigatorio.")
+        if normalized.lower() in BLOCKED_USER_VALUES:
+            raise ValueError("Informe apenas um UPN de usuario. Valores amplos nao sao permitidos.")
+        if any(sep in normalized for sep in (",", ";", " ")):
+            raise ValueError("Informe apenas um UPN. Multiplos UPNs nao sao permitidos.")
+        if not UPN_PATTERN.match(normalized):
+            raise ValueError("user_upn deve parecer um UPN valido, como usuario@dominio.com.")
+        return normalized

@@ -7,29 +7,16 @@ from fastmcp import FastMCP
 from mcp_entraid.services.runbook_service import RunbookService
 
 
-def register_runbook_tools(mcp: FastMCP, runbook_service: RunbookService) -> None:
+def register_azure_unlock_user_tool(mcp: FastMCP, runbook_service: RunbookService) -> None:
     @mcp.tool
-    async def azure_execute_automation_runbook(
-        runbook_name: str,
-        parameters: dict[str, str] | None = None,
+    async def azure_unlock_user(
+        user_upn: str,
         wait_for_completion: bool = True,
         timeout_seconds: int = 60,
     ) -> dict[str, Any]:
-        response = await runbook_service.execute_runbook(
-            runbook_name=runbook_name,
-            parameters=parameters,
+        response = await runbook_service.unlock_user(
+            user_upn=user_upn,
             wait_for_completion=wait_for_completion,
             timeout_seconds=timeout_seconds,
-        )
-        return response.model_dump(mode="json")
-
-    @mcp.tool
-    async def azure_get_automation_runbook_output(
-        job_name: str,
-        include_streams: bool = True,
-    ) -> dict[str, Any]:
-        response = await runbook_service.get_runbook_output(
-            job_name=job_name,
-            include_streams=include_streams,
         )
         return response.model_dump(mode="json")

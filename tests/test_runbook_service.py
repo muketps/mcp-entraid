@@ -12,17 +12,16 @@ from mcp_entraid.settings import Settings
 
 def make_settings() -> Settings:
     return Settings(
+        _env_file=None,
         TENANT_ID="tenant",
         CLIENT_ID="client",
         CLIENT_SECRET="secret",
         GRAPH_BASE_URL="https://graph.microsoft.com/v1.0",
         GRAPH_SCOPE="https://graph.microsoft.com/.default",
-        AZURE_TENANT_ID="azure-tenant",
-        AZURE_CLIENT_ID="azure-client",
-        AZURE_CLIENT_SECRET="azure-secret",
         AZURE_SUBSCRIPTION_ID="sub-id",
         AZURE_RESOURCE_GROUP_NAME="rg",
         AZURE_AUTOMATION_ACCOUNT_NAME="aa",
+        AZURE_UNLOCK_USER_RUNBOOK_NAME="Unlock-User",
         AZURE_AUTOMATION_API_VERSION="2024-10-23",
         AZURE_ALLOWED_RUNBOOKS="Allowed-Runbook",
         AZURE_AUTOMATION_RUN_ON="",
@@ -190,6 +189,95 @@ async def test_get_runbook_output_can_skip_streams():
     assert response.success is True
     assert response.streams == []
     assert automation_client.stream_calls == []
+
+
+@pytest.mark.asyncio
+async def test_unlock_user_uses_configured_runbook_and_upn_parameter():
+    settings = make_settings()
+    settings.azure_allowed_runbooks = "Unlock-User"
+    automation_client = FakeAutomationClient()
+    service = RunbookService(
+        settings=settings,
+        automation_client=automation_client,
+        authorizer=FakeAuthorizer(),
+        audit_logger=FakeAuditLogger(),
+    )
+
+    response = await service.unlock_user("alice@example.com", wait_for_completion=False)
+
+    assert response.success is True
+    assert response.runbook_name == "Unlock-User"
+    assert automation_client.created_jobs[0]["runbook_name"] == "Unlock-User"
+    assert automation_client.created_jobs[0]["parameters"] == {"UPN": "alice@example.com"}
+
+
+@pytest.mark.asyncio
+async def test_unlock_user_uses_graph_credentials_for_azure():
+    settings = Settings(
+        _env_file=None,
+        TENANT_ID="graph-tenant",
+        CLIENT_ID="graph-client",
+        CLIENT_SECRET="graph-secret",
+        GRAPH_BASE_URL="https://graph.microsoft.com/v1.0",
+        GRAPH_SCOPE="https://graph.microsoft.com/.default",
+        AZURE_SUBSCRIPTION_ID="sub-id",
+        AZURE_RESOURCE_GROUP_NAME="rg",
+        AZURE_AUTOMATION_ACCOUNT_NAME="aa",
+        AZURE_UNLOCK_USER_RUNBOOK_NAME="Unlock-User",
+        AZURE_AUTOMATION_API_VERSION="2024-10-23",
+        AZURE_ALLOWED_RUNBOOKS="Unlock-User",
+        AZURE_AUTOMATION_RUN_ON="",
+    )
+    automation_client = FakeAutomationClient()
+    service = RunbookService(
+        settings=settings,
+        automation_client=automation_client,
+        authorizer=FakeAuthorizer(),
+        audit_logger=FakeAuditLogger(),
+    )
+
+    response = await service.unlock_user("alice@example.com", wait_for_completion=False)
+
+    assert response.success is True
+    assert settings.azure_tenant_id_effective == "graph-tenant"
+    assert settings.azure_client_id_effective == "graph-client"
+    assert settings.azure_client_secret_effective == "graph-secret"
+
+
+@pytest.mark.asyncio
+async def test_arm_token_provider_uses_graph_credentials_for_azure():
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["url"] = str(request.url)
+        captured["body"] = request.content.decode()
+        return httpx.Response(200, json={"access_token": "token", "expires_in": 3600})
+
+    settings = Settings(
+        _env_file=None,
+        TENANT_ID="graph-tenant",
+        CLIENT_ID="graph-client",
+        CLIENT_SECRET="graph-secret",
+        GRAPH_BASE_URL="https://graph.microsoft.com/v1.0",
+        GRAPH_SCOPE="https://graph.microsoft.com/.default",
+        AZURE_SUBSCRIPTION_ID="sub-id",
+        AZURE_RESOURCE_GROUP_NAME="rg",
+        AZURE_AUTOMATION_ACCOUNT_NAME="aa",
+        AZURE_UNLOCK_USER_RUNBOOK_NAME="Unlock-User",
+        AZURE_AUTOMATION_API_VERSION="2024-10-23",
+        AZURE_ALLOWED_RUNBOOKS="Unlock-User",
+        AZURE_AUTOMATION_RUN_ON="",
+    )
+    http_client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    token_provider = ArmTokenProvider(settings, http_client=http_client)
+
+    token = await token_provider.get_access_token()
+    await http_client.aclose()
+
+    assert token == "token"
+    assert "graph-tenant/oauth2/v2.0/token" in captured["url"]
+    assert "client_id=graph-client" in captured["body"]
+    assert "client_secret=graph-secret" in captured["body"]
 
 
 @pytest.mark.asyncio

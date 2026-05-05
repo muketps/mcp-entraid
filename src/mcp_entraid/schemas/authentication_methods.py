@@ -21,6 +21,18 @@ class AuthenticationMethodOperationResult(BaseModel):
     reason: str | None = None
 
 
+class ListAuthenticationMethodsResponse(BaseModel):
+    success: bool
+    user_upn: str
+    user_id: str
+    user_display_name: str | None = None
+    methods_kind: str
+    methods_count: int
+    methods: list[AuthenticationMethodSummary]
+    message: str
+    request_id: str | None = None
+
+
 class ResetMfaStartResponse(BaseModel):
     success: bool
     reset_request_id: str

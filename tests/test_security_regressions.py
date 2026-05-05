@@ -19,6 +19,22 @@ from mcp_entraid.workflows.reset_mfa_workflow import (
 from mcp_entraid.workflows.workflow_store import WorkflowStore
 
 
+EXPECTED_PUBLIC_TOOLS = {
+    "azure_unlock_user",
+    "entra_check_required_groups_by_platform",
+    "entra_find_app_registrations_by_user",
+    "entra_find_groups",
+    "entra_get_direct_reports",
+    "entra_get_user",
+    "entra_list_expiring_app_credentials",
+    "entra_list_microsoft_authenticator_methods",
+    "entra_list_group_members",
+    "entra_list_phone_methods",
+    "entra_list_user_groups",
+    "entra_reset_mfa",
+}
+
+
 class FakeGraphClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict | None]] = []
@@ -222,7 +238,7 @@ async def test_reset_mfa_workflow_rejects_expired_and_replayed_steps():
 
 
 @pytest.mark.asyncio
-async def test_public_server_does_not_expose_runbook_tools(monkeypatch):
+async def test_public_server_exposes_only_unlock_user_runbook_tool(monkeypatch):
     env = {
         "TENANT_ID": "tenant",
         "CLIENT_ID": "client",
@@ -235,5 +251,4 @@ async def test_public_server_does_not_expose_runbook_tools(monkeypatch):
     mcp = module.mcp
 
     tool_names = {tool.name for tool in await mcp.list_tools()}
-    assert "azure_execute_automation_runbook" not in tool_names
-    assert "azure_get_automation_runbook_output" not in tool_names
+    assert tool_names == EXPECTED_PUBLIC_TOOLS

@@ -2,7 +2,7 @@
 
 Este documento descreve a suíte automatizada atual do `mcp-entraid` e o que cada arquivo de teste já validou.
 
-No momento, a suíte passa com `38 passed`.
+No momento, a suíte passa com `42 passed`.
 
 ## O que a suíte cobre
 
@@ -77,6 +77,8 @@ Valida as tools públicas do fluxo de reset de MFA.
 
 O que já cobre:
 
+- a tool `entra_list_phone_methods` está registrada e usa `user_upn`
+- a tool `entra_list_microsoft_authenticator_methods` está registrada e usa `user_upn`
 - a façade `entra_reset_mfa` é a única tool pública de MFA, evitando chamadas diretas que dependam de `reset_request_id`
 - a ação `start` roteia para o início do workflow usando `user_upn`
 - a ação `confirm` confirma a remoção por `user_upn`
@@ -98,8 +100,6 @@ O que já cobre:
 - a etapa `delete_authentication_methods` revoga sessões automaticamente após processar os métodos
 - o workflow continua mesmo se uma exclusão individual falhar
 - a conclusão retorna mensagem padrão orientando recadastro de MFA
-- revogar sessões marca o workflow como concluído
-- o status do workflow reflete o estado final após a última etapa
 
 ### `tests/test_group_service.py`
 
@@ -177,6 +177,17 @@ O que já cobre:
 - a leitura de saída retorna o output e os streams do job
 - a leitura de streams pode ser pulada com `include_streams=False`
 - saída em texto puro pode ser convertida para JSON estruturado quando fizer sentido
+- `unlock_user()` usa o runbook configurado e envia o parâmetro `UPN`
+
+### `tests/test_runbook_tools.py`
+
+Valida a tool pública de desbloqueio de usuário via Azure Automation.
+
+O que já cobre:
+
+- `azure_unlock_user` está registrada no FastMCP
+- o `user_upn` é repassado para o serviço
+- a tool usa `wait_for_completion=True` por padrão
 
 ### `tests/test_security_regressions.py`
 
@@ -197,7 +208,7 @@ O que já cobre:
 - `ApplicationService` trata throttling do Graph de maneira previsível
 - o workflow de reset de MFA rejeita workflows expirados
 - o workflow de reset de MFA rejeita replays de etapas após expiração
-- o servidor público MCP não expõe as tools de runbook
+- o servidor público MCP expõe apenas `azure_unlock_user` entre as tools de runbook
 
 ## Postura de segurança já coberta pelos testes
 

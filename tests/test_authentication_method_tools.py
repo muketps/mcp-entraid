@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pytest
 
+from mcp_entraid.schemas.authentication_methods import AuthenticationMethodSummary
+
 
 class DumpableResponse:
     def __init__(self, payload: dict) -> None:
@@ -48,21 +50,89 @@ class FakeResetMfaWorkflow:
         )
 
 
+class FakeUserService:
+    async def get_user(self, user_upn: str):
+        return type(
+            "Response",
+            (),
+            {
+                "success": True,
+                "data": type(
+                    "User",
+                    (),
+                    {
+                        "user_id": "user-123",
+                        "user_principal_name": user_upn,
+                        "display_name": "Alice Silva",
+                    },
+                )(),
+                "request_id": None,
+                "error": None,
+            },
+        )()
+
+
+class FakeAuthenticationMethodService:
+    async def list_phone_methods(self, user_id: str):
+        return [
+            AuthenticationMethodSummary(
+                id="phone-1",
+                type="phoneMethod",
+                display_name="mobile",
+                phone_type="mobile",
+                phone_number_masked="***-1234",
+                status="notAllowedByPolicy",
+            )
+        ]
+
+    async def list_microsoft_authenticator_methods(self, user_id: str):
+        return [
+            AuthenticationMethodSummary(
+                id="mfa-1",
+                type="microsoftAuthenticatorMethod",
+                display_name="Microsoft Authenticator",
+            )
+        ]
+
+
+class AllowResetMfaAuthorizer:
+    async def require_reset_mfa_permission(self) -> None:
+        return None
+
+
 @pytest.mark.asyncio
-async def test_reset_mfa_facade_is_the_only_public_mfa_tool_and_routes_actions():
+async def test_authentication_method_tools_include_read_only_methods_and_mfa_facade():
     from fastmcp import FastMCP
 
     from mcp_entraid.tools.authentication_methods import register_authentication_method_tools
 
     mcp = FastMCP(name="test")
     workflow = FakeResetMfaWorkflow()
-    register_authentication_method_tools(mcp, workflow)
+    register_authentication_method_tools(
+        mcp,
+        user_service=FakeUserService(),
+        authentication_method_service=FakeAuthenticationMethodService(),
+        reset_mfa_workflow=workflow,
+        authorizer=AllowResetMfaAuthorizer(),
+    )
 
     tool_names = {tool.name for tool in await mcp.list_tools()}
+    assert "entra_list_phone_methods" in tool_names
+    assert "entra_list_microsoft_authenticator_methods" in tool_names
     assert "entra_reset_mfa" in tool_names
     assert "entra_reset_user_mfa_start" not in tool_names
     assert "entra_reset_user_mfa_execute_step" not in tool_names
     assert "entra_reset_user_mfa_status" not in tool_names
+
+    phone_tool = await mcp.get_tool("entra_list_phone_methods")
+    phone_result = (await phone_tool.run({"user_upn": "alice@example.com"})).structured_content
+    assert phone_result["methods_kind"] == "phone"
+    assert phone_result["methods"][0]["phone_type"] == "mobile"
+
+    mfa_tool = await mcp.get_tool("entra_list_microsoft_authenticator_methods")
+    mfa_result = (await mfa_tool.run({"user_upn": "alice@example.com"})).structured_content
+    assert mfa_result["methods_kind"] == "microsoft_authenticator"
+    assert mfa_result["methods"][0]["display_name"] == "Microsoft Authenticator"
 
     tool = await mcp.get_tool("entra_reset_mfa")
 
@@ -88,7 +158,13 @@ async def test_reset_mfa_facade_validates_required_fields():
     from mcp_entraid.tools.authentication_methods import register_authentication_method_tools
 
     mcp = FastMCP(name="test")
-    register_authentication_method_tools(mcp, FakeResetMfaWorkflow())
+    register_authentication_method_tools(
+        mcp,
+        user_service=FakeUserService(),
+        authentication_method_service=FakeAuthenticationMethodService(),
+        reset_mfa_workflow=FakeResetMfaWorkflow(),
+        authorizer=AllowResetMfaAuthorizer(),
+    )
 
     tool = await mcp.get_tool("entra_reset_mfa")
 
