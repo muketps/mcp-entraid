@@ -191,3 +191,29 @@ async def test_group_service_rejects_wildcards_and_invalid_ids():
 
     with pytest.raises(ValueError):
         await service.check_required_groups_by_platform("alice@example.com", "")
+
+
+@pytest.mark.asyncio
+async def test_group_service_rejects_invalid_platform_and_user_list_like_values():
+    service = GroupService(FakeGraphClient(), FakeUserService())
+
+    with pytest.raises(ValueError):
+        await service.check_required_groups_by_platform("alice@example.com", "solaris")
+
+    class RejectingUserService:
+        async def get_user(self, user_upn: str):
+            return type(
+                "Response",
+                (),
+                {
+                    "success": False,
+                    "data": None,
+                    "request_id": None,
+                    "error": "Informe apenas um UPN de usuario. Multiplos UPNs nao sao permitidos.",
+                },
+            )()
+
+    rejecting_service = GroupService(FakeGraphClient(), RejectingUserService())
+    response = await rejecting_service.list_user_groups("alice@example.com, bob@example.com")
+    assert response.success is False
+    assert response.groups_count == 0

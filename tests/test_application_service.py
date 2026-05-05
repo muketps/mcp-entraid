@@ -176,3 +176,19 @@ async def test_application_service_rejects_wildcard_user_upn():
 
     assert response.success is False
     assert response.matches_count == 0
+
+
+@pytest.mark.asyncio
+async def test_find_app_registrations_by_user_without_search_criteria_returns_empty_result():
+    service = ApplicationService(FakeGraphClient(), FakeUserService())
+
+    response = await service.find_app_registrations_by_user(
+        "alice@example.com",
+        search_display_name=False,
+        search_owned_apps=False,
+    )
+
+    assert response.success is True
+    assert response.matches_count == 0
+    assert response.matches == []
+    assert "nenhum criterio" in response.message.lower()

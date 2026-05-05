@@ -13,6 +13,44 @@ Usage rule:
 - Always list changed files explicitly.
 - Keep entries in reverse chronological order, newest first.
 
+## 2026-05-04 - Test coverage documentation added
+
+Summary:
+- Added an internal test coverage document describing what each test file validates and which security regressions are already covered.
+
+Changed files:
+- [TESTS.md](TESTS.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The document summarizes the current `31 passed` suite and calls out remaining gaps such as real tenant integration and authorization enforcement.
+
+## 2026-05-04 - README local run instructions updated
+
+Summary:
+- Rewrote the README execution section to reflect the current no-uv local run flow with `python server.py`.
+
+Changed files:
+- [README.md](README.md)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The README now points to `http://127.0.0.1:8000` as the local server address.
+
+## 2026-05-04 - Local HTTP transport enabled
+
+Summary:
+- Switched the FastMCP deployment from `stdio` to local HTTP so the server can be tested through a localhost MCP hub.
+
+Changed files:
+- [fastmcp.json](fastmcp.json)
+- [src/mcp_entraid/server.py](src/mcp_entraid/server.py)
+- [INTERNAL_CHANGELOG.md](INTERNAL_CHANGELOG.md)
+
+Notes:
+- The server now listens on `127.0.0.1:8000`.
+- The module also has a direct `__main__` HTTP runner.
+
 ## 2026-05-04 - Git ignore cleanup
 
 Summary:

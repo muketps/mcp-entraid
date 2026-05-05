@@ -45,3 +45,7 @@ register_application_tools(
     authorizer=get_authorizer(),
     audit_logger=get_audit_logger(),
 )
+
+
+if __name__ == "__main__":
+    mcp.run(transport="http", host="127.0.0.1", port=8000)

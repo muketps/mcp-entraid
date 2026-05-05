@@ -175,6 +175,24 @@ async def test_get_runbook_output_returns_output_and_streams():
 
 
 @pytest.mark.asyncio
+async def test_get_runbook_output_can_skip_streams():
+    settings = make_settings()
+    automation_client = FakeAutomationClient()
+    service = RunbookService(
+        settings=settings,
+        automation_client=automation_client,
+        authorizer=FakeAuthorizer(),
+        audit_logger=FakeAuditLogger(),
+    )
+
+    response = await service.get_runbook_output("job-123", include_streams=False)
+
+    assert response.success is True
+    assert response.streams == []
+    assert automation_client.stream_calls == []
+
+
+@pytest.mark.asyncio
 async def test_automation_client_parses_plain_text_and_json_output():
     settings = make_settings()
     transport = httpx.MockTransport(
