@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timezone
 from typing import Any
 
 logger = logging.getLogger("mcp_entraid.audit")
@@ -72,6 +73,46 @@ class AuditLogger:
         )
         logger.info(
             "reset_mfa_workflow",
+            extra={
+                "tool_name": tool_name,
+                "request_id": request_id,
+                "metadata": safe_metadata,
+            },
+        )
+
+    def log_password_reset_event(
+        self,
+        tool_name: str,
+        reset_password_request_id: str | None = None,
+        user_upn: str | None = None,
+        status: str | None = None,
+        confirmation_required: bool | None = None,
+        confirmation_matched: bool | None = None,
+        password_generated: bool | None = None,
+        runbook_name: str | None = None,
+        automation_job_name: str | None = None,
+        automation_job_id: str | None = None,
+        runbook_status: str | None = None,
+        success: bool | None = None,
+        request_id: str | None = None,
+    ) -> None:
+        metadata = {
+            "reset_password_request_id": reset_password_request_id,
+            "user_upn": user_upn,
+            "status": status,
+            "confirmation_required": confirmation_required,
+            "confirmation_matched": confirmation_matched,
+            "password_generated": password_generated,
+            "runbook_name": runbook_name,
+            "automation_job_name": automation_job_name,
+            "automation_job_id": automation_job_id,
+            "runbook_status": runbook_status,
+            "success": success,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        }
+        safe_metadata = self._sanitize({key: value for key, value in metadata.items() if value is not None})
+        logger.info(
+            "reset_password_workflow",
             extra={
                 "tool_name": tool_name,
                 "request_id": request_id,

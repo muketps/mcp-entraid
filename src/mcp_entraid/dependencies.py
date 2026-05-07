@@ -13,10 +13,12 @@ from mcp_entraid.security.authorizer import Authorizer
 from mcp_entraid.services.application_service import ApplicationService
 from mcp_entraid.services.group_service import GroupService
 from mcp_entraid.services.authentication_method_service import AuthenticationMethodService
+from mcp_entraid.services.password_reset_service import PasswordResetService
 from mcp_entraid.services.user_service import UserService
 from mcp_entraid.services.runbook_service import RunbookService
 from mcp_entraid.settings import Settings
 from mcp_entraid.workflows.reset_mfa_workflow import ResetMfaWorkflow
+from mcp_entraid.workflows.reset_password_workflow import ResetPasswordWorkflow
 from mcp_entraid.workflows.workflow_store import WorkflowStore
 
 load_dotenv()
@@ -67,6 +69,24 @@ def get_reset_mfa_workflow() -> ResetMfaWorkflow:
     return ResetMfaWorkflow(
         user_service=get_user_service(),
         authentication_method_service=get_authentication_method_service(),
+        workflow_store=get_workflow_store(),
+        authorizer=get_authorizer(),
+        audit_logger=get_audit_logger(),
+    )
+
+
+@lru_cache
+def get_password_reset_service() -> PasswordResetService:
+    return PasswordResetService()
+
+
+@lru_cache
+def get_reset_password_workflow() -> ResetPasswordWorkflow:
+    return ResetPasswordWorkflow(
+        settings=get_settings(),
+        user_service=get_user_service(),
+        password_reset_service=get_password_reset_service(),
+        runbook_service=get_runbook_service(),
         workflow_store=get_workflow_store(),
         authorizer=get_authorizer(),
         audit_logger=get_audit_logger(),
