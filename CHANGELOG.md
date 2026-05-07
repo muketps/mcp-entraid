@@ -10,6 +10,29 @@ Todas as mudanças relevantes do projeto, em ordem cronológica reversa.
 - O fluxo de reset agora gera a senha localmente e vai direto para o runbook de reset, sem etapa de validação remota.
 - Campos removidos da resposta: `password_validated`, `password_is_valid`, `validation_attempts`, `validation_results`.
 
+### Grupos
+- Criadas as tools públicas de escrita em grupos:
+  - `entra_add_user_to_group(user_upn, group_id)`
+  - `entra_remove_user_from_group(user_upn, group_id)`
+- As duas tools usam `user_upn` como chave pública do usuário e `group_id` apenas para o grupo alvo.
+- O serviço resolve o usuário internamente via `UserService`, usa o `user_id` apenas dentro da aplicação e chama o Microsoft Graph em:
+  - `POST /groups/{group_id}/members/$ref`
+  - `DELETE /groups/{group_id}/members/{user_id}/$ref`
+- Adicionado o schema `GroupMembershipMutationResponse` para padronizar respostas de add/remove.
+- Adicionada permissão interna de escrita `ENTRA_GROUP_WRITE` e hook `Authorizer.require_group_write_permission()`.
+- Documentada a necessidade de `GroupMember.ReadWrite.All` no Microsoft Graph.
+- Adicionados testes cobrindo registro das tools, autorização de escrita, payload Graph de adição, endpoint Graph de remoção e regressão da lista pública de tools.
+
+### Azure Automation
+- Detalhada a configuração da tool pública `azure_unlock_user`.
+- O desbloqueio continua exposto apenas pela tool específica `azure_unlock_user`; o executor genérico de runbooks permanece fora da superfície pública.
+- O runbook de desbloqueio vem de `AZURE_UNLOCK_USER_RUNBOOK_NAME`.
+- O runbook precisa estar permitido em `AZURE_ALLOWED_RUNBOOKS`.
+- A allowlist de parâmetros do runbook é controlada por `AZURE_RUNBOOK_PARAMETER_ALLOWLIST`.
+- O parâmetro enviado ao runbook de unlock é `UPN`, derivado do `user_upn` público.
+- Mantido o uso das credenciais `TENANT_ID`, `CLIENT_ID` e `CLIENT_SECRET` do mesmo App Registration usado pelo Graph.
+- A execução suporta `wait_for_completion` e `timeout_seconds`, retornando dados do job e output quando disponível.
+
 ## 2026-05-06
 
 ### Reset de senha
@@ -38,6 +61,8 @@ Todas as mudanças relevantes do projeto, em ordem cronológica reversa.
 - Criada a tool pública `azure_unlock_user`.
 - O unlock usa `TENANT_ID`, `CLIENT_ID` e `CLIENT_SECRET` do mesmo app registration do Graph.
 - O nome do runbook ficou configurado em `AZURE_UNLOCK_USER_RUNBOOK_NAME`.
+- Adicionadas as configurações `AZURE_ALLOWED_RUNBOOKS` e `AZURE_RUNBOOK_PARAMETER_ALLOWLIST` para travar runbooks e parâmetros permitidos.
+- O parâmetro público da tool é `user_upn`; internamente ele é enviado ao runbook como `UPN`.
 
 ### Grupos
 - Criada a tool pública `entra_find_groups` para buscar grupos por display name ou GUID.
