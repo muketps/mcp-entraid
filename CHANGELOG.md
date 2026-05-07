@@ -2,6 +2,22 @@
 
 Todas as mudanças relevantes do projeto, em ordem cronológica reversa.
 
+## 2026-05-07
+
+### Reset de senha
+- Removida a chamada à API `validatePassword` do Microsoft Graph beta — a API exige token delegado com role administrativa (Password Administrator ou superior), o que inviabiliza o uso com application permissions.
+- Removido o `DelegatedGraphTokenProvider` e toda a infraestrutura de token delegado.
+- O fluxo de reset agora gera a senha localmente e vai direto para o runbook de reset, sem etapa de validação remota.
+- Campos removidos da resposta: `password_validated`, `password_is_valid`, `validation_attempts`, `validation_results`.
+
+## 2026-05-06
+
+### Reset de senha
+- Criado o fluxo guiado de reset de senha (`entra_reset_user_password`) com confirmação explícita antes de executar.
+- Geração de senha temporária local com critérios de complexidade (maiúscula, minúscula, número, símbolo, sem padrões fracos).
+- Integração com runbook de reset via Azure Automation.
+- Configurações adicionadas: `PASSWORD_RESET_RUNBOOK_NAME`, `PASSWORD_RESET_RUNBOOK_USER_PARAM`, `PASSWORD_RESET_RUNBOOK_PASSWORD_PARAM`, `PASSWORD_RESET_RETURN_TEMPORARY_PASSWORD`, `PASSWORD_RESET_WORKFLOW_EXPIRATION_MINUTES`.
+
 ## 2026-05-05
 
 ### Usuários
