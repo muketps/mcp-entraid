@@ -21,6 +21,7 @@ from mcp_entraid.workflows.workflow_store import WorkflowStore
 
 EXPECTED_PUBLIC_TOOLS = {
     "azure_unlock_user",
+    "entra_add_user_to_group",
     "entra_check_required_groups_by_platform",
     "entra_find_app_registrations_by_user",
     "entra_find_groups",
@@ -31,6 +32,8 @@ EXPECTED_PUBLIC_TOOLS = {
     "entra_list_group_members",
     "entra_list_phone_methods",
     "entra_list_user_groups",
+    "entra_remove_user_from_group",
+    "entra_reset_user_password",
     "entra_reset_mfa",
 }
 

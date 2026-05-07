@@ -1,6 +1,8 @@
 ENTRA_USER_READ = "entra:user:read"
 ENTRA_DIRECT_REPORTS_READ = "entra:user:direct_reports:read"
 ENTRA_GROUP_READ = "entra:group:read"
+ENTRA_GROUP_WRITE = "entra:group:write"
 ENTRA_APPLICATION_READ = "entra:application:read"
 ENTRA_RESET_MFA = "entra:user:reset_mfa"
+ENTRA_RESET_PASSWORD = "entra:user:reset_password"
 AZURE_EXECUTE_RUNBOOK = "azure:automation:execute_runbook"

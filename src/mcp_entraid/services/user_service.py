@@ -9,7 +9,7 @@ from mcp_entraid.schemas.common import ToolResponse
 from mcp_entraid.schemas.users import EntraUser
 from mcp_entraid.utils.odata import encode_path_segment, select_params
 
-BLOCKED_USER_VALUES = {"*", "all", "todos", "everyone", "tenant"}
+BLOCKED_USER_VALUES = {"*", "all", "todos", "everyone", "tenant", "organization"}
 UPN_PATTERN = re.compile(r"^[^@\s,;|]+@[^@\s,;|]+\.[^@\s,;|]+$")
 
 
@@ -65,7 +65,7 @@ class UserService:
             raise ValueError("user_upn e obrigatorio.")
         if normalized.lower() in BLOCKED_USER_VALUES:
             raise ValueError("Informe apenas um UPN de usuario. Valores amplos nao sao permitidos.")
-        if any(sep in normalized for sep in (",", ";", " ")):
+        if any(sep in normalized for sep in (",", ";", "|", " ")):
             raise ValueError("Informe apenas um UPN. Multiplos UPNs nao sao permitidos.")
         if not UPN_PATTERN.match(normalized):
             raise ValueError("user_upn deve parecer um UPN valido, como usuario@dominio.com.")

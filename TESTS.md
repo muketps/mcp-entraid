@@ -2,7 +2,7 @@
 
 Este documento descreve a suíte automatizada atual do `mcp-entraid` e o que cada arquivo de teste já validou.
 
-No momento, a suíte passa com `42 passed`.
+No momento, a suíte passa com `55 passed`.
 
 ## O que a suíte cobre
 
@@ -11,6 +11,8 @@ Os testes atuais focam em:
 - consulta de usuário no Graph e normalização da resposta
 - segurança do fluxo guiado de reset de MFA e ordem das etapas
 - verificação de grupos obrigatórios e conformidade por plataforma
+- adição e remoção de usuários em grupos
+- workflow de reset de senha com confirmação textual, validação Graph beta e runbook
 - governança de app registrations e relatórios de credenciais expirando
 - comportamento interno do serviço de runbooks do Azure Automation
 - comportamento de throttling do cliente Graph
@@ -120,9 +122,59 @@ O que já cobre:
 - limites inválidos de resultado são rejeitados
 - a listagem de membros de grupo suporta paginação
 - a listagem de membros filtra apenas usuários
+- a adição de usuário a grupo usa `POST /groups/{group_id}/members/$ref`
+- a remoção de usuário de grupo usa `DELETE /groups/{group_id}/members/{user_id}/$ref`
 - curingas e identificadores inválidos são rejeitados
 - plataformas inválidas são rejeitadas
 - valores parecidos com listas de usuários são rejeitados pelo caminho de consulta de usuário
+
+### `tests/test_group_tools.py`
+
+Valida as tools públicas de alteração de membros de grupos.
+
+O que já cobre:
+
+- `entra_add_user_to_group` está registrada no FastMCP
+- `entra_remove_user_from_group` está registrada no FastMCP
+- as duas tools usam `user_upn` e `group_id`
+- as duas tools exigem permissão de escrita de grupos
+- as chamadas são roteadas para o serviço de grupos
+
+### `tests/test_password_tools.py`
+
+Valida a facade pública única do reset de senha.
+
+O que já cobre:
+
+- apenas `entra_reset_user_password` é registrada pelo módulo de senhas
+- a primeira chamada roteia para o início do workflow usando `user_upn`
+- a segunda chamada roteia para execução usando `reset_password_request_id` e `confirmation`
+- a confirmação também pode ser roteada por `user_upn` quando já existe workflow pendente
+- parâmetros incoerentes retornam erro estruturado
+
+### `tests/test_base64_utils.py`
+
+Valida a decodificação de output base64 do runbook.
+
+O que já cobre:
+
+- base64 com JSON é convertido para dict
+- base64 com texto é retornado como string
+- base64 inválido gera erro controlado
+
+### `tests/test_reset_password_workflow.py`
+
+Valida o workflow interno de reset de senha.
+
+O que já cobre:
+
+- a primeira chamada cria estado e frase de confirmação sem gerar senha nem chamar runbook
+- uma nova chamada de início para o mesmo usuário reutiliza o workflow pendente
+- a confirmação exata gera senha, valida no Graph beta e só então chama o runbook
+- a confirmação pode executar um workflow pendente a partir de `user_upn`
+- senha inválida é descartada e uma nova tentativa é feita
+- se todas as senhas falham na validação, o runbook não é chamado
+- output base64 do runbook é decodificado e JSON válido vira dict
 
 ### `tests/test_graph_client.py`
 
@@ -208,6 +260,8 @@ O que já cobre:
 - `ApplicationService` trata throttling do Graph de maneira previsível
 - o workflow de reset de MFA rejeita workflows expirados
 - o workflow de reset de MFA rejeita replays de etapas após expiração
+- o workflow de reset de senha não executa sem confirmação textual exata
+- o workflow de reset de senha não chama runbook quando a validação de senha falha
 - o servidor público MCP expõe apenas `azure_unlock_user` entre as tools de runbook
 
 ## Postura de segurança já coberta pelos testes

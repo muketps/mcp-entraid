@@ -74,6 +74,17 @@ class ListGroupMembersResponse(BaseModel):
     request_id: str | None = None
 
 
+class GroupMembershipMutationResponse(BaseModel):
+    success: bool
+    group_id: str
+    user_id: str
+    user_principal_name: str
+    user_display_name: str | None = None
+    action: str
+    message: str
+    request_id: str | None = None
+
+
 class FindGroupsResponse(BaseModel):
     success: bool
     query: str

@@ -17,6 +17,10 @@ class Settings(BaseSettings):
         default="https://graph.microsoft.com/.default",
         alias="GRAPH_SCOPE",
     )
+    graph_beta_base_url: AnyHttpUrl = Field(
+        default="https://graph.microsoft.com/beta",
+        alias="GRAPH_BETA_BASE_URL",
+    )
     azure_tenant_id: str | None = Field(default=None, alias="AZURE_TENANT_ID")
     azure_client_id: str | None = Field(default=None, alias="AZURE_CLIENT_ID")
     azure_client_secret: str | None = Field(default=None, alias="AZURE_CLIENT_SECRET")
@@ -34,6 +38,32 @@ class Settings(BaseSettings):
         default=None,
         alias="AZURE_RUNBOOK_PARAMETER_ALLOWLIST",
     )
+    password_generation_max_attempts: int = Field(default=5, alias="PASSWORD_GENERATION_MAX_ATTEMPTS")
+    password_reset_runbook_name: str | None = Field(default=None, alias="PASSWORD_RESET_RUNBOOK_NAME")
+    password_reset_runbook_wait_for_completion: bool = Field(
+        default=True,
+        alias="PASSWORD_RESET_RUNBOOK_WAIT_FOR_COMPLETION",
+    )
+    password_reset_runbook_timeout_seconds: int = Field(
+        default=120,
+        alias="PASSWORD_RESET_RUNBOOK_TIMEOUT_SECONDS",
+    )
+    password_reset_return_temporary_password: bool = Field(
+        default=True,
+        alias="PASSWORD_RESET_RETURN_TEMPORARY_PASSWORD",
+    )
+    password_reset_workflow_expiration_minutes: int = Field(
+        default=15,
+        alias="PASSWORD_RESET_WORKFLOW_EXPIRATION_MINUTES",
+    )
+    password_reset_runbook_user_param: str = Field(
+        default="UserPrincipalName",
+        alias="PASSWORD_RESET_RUNBOOK_USER_PARAM",
+    )
+    password_reset_runbook_password_param: str = Field(
+        default="TemporaryPassword",
+        alias="PASSWORD_RESET_RUNBOOK_PASSWORD_PARAM",
+    )
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -44,6 +74,10 @@ class Settings(BaseSettings):
     @property
     def graph_base_url_str(self) -> str:
         return str(self.graph_base_url).rstrip("/")
+
+    @property
+    def graph_beta_base_url_str(self) -> str:
+        return str(self.graph_beta_base_url).rstrip("/")
 
     @cached_property
     def azure_allowed_runbooks_list(self) -> list[str]:

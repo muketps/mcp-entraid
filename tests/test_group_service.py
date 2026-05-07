@@ -38,6 +38,8 @@ class FakeGraphClient:
     def __init__(self) -> None:
         self.absolute_calls: list[str] = []
         self.calls: list[tuple[str, dict[str, str] | None]] = []
+        self.post_calls: list[tuple[str, dict | None]] = []
+        self.delete_calls: list[str] = []
 
     async def get(self, path: str, params: dict[str, str] | None = None):
         self.calls.append((path, params))
@@ -154,6 +156,13 @@ class FakeGraphClient:
             ]
         }
 
+    async def post(self, path: str, json: dict | None = None):
+        self.post_calls.append((path, json))
+        return {}
+
+    async def delete(self, path: str):
+        self.delete_calls.append(path)
+
 
 @pytest.mark.asyncio
 async def test_check_required_groups_marks_direct_inherited_and_missing():
@@ -200,6 +209,45 @@ async def test_list_group_members_supports_pagination_and_filters_to_users():
     assert response.success is True
     assert response.members_count == 1
     assert response.members[0].user_principal_name == "carol@example.com"
+
+
+@pytest.mark.asyncio
+async def test_add_user_to_group_posts_membership_reference():
+    graph_client = FakeGraphClient()
+    service = GroupService(graph_client, FakeUserService())
+
+    response = await service.add_user_to_group(
+        user_upn="alice@example.com",
+        group_id="00000000-0000-0000-0000-000000000010",
+    )
+
+    assert response.success is True
+    assert response.action == "add"
+    assert response.user_id == "user-123"
+    assert graph_client.post_calls == [
+        (
+            "/groups/00000000-0000-0000-0000-000000000010/members/$ref",
+            {"@odata.id": "https://graph.microsoft.com/v1.0/directoryObjects/user-123"},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_remove_user_from_group_deletes_membership_reference():
+    graph_client = FakeGraphClient()
+    service = GroupService(graph_client, FakeUserService())
+
+    response = await service.remove_user_from_group(
+        user_upn="alice@example.com",
+        group_id="00000000-0000-0000-0000-000000000010",
+    )
+
+    assert response.success is True
+    assert response.action == "remove"
+    assert response.user_principal_name == "alice@example.com"
+    assert graph_client.delete_calls == [
+        "/groups/00000000-0000-0000-0000-000000000010/members/user-123/$ref"
+    ]
 
 
 @pytest.mark.asyncio
@@ -271,6 +319,9 @@ async def test_group_service_rejects_wildcards_and_invalid_ids():
 
     with pytest.raises(ValueError):
         await service.list_group_members("not-a-guid")
+
+    with pytest.raises(ValueError):
+        await service.add_user_to_group("alice@example.com", "not-a-guid")
 
     response = await service.check_required_groups_by_platform("*", "windows")
     assert response.success is False

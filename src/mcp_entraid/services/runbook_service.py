@@ -8,7 +8,7 @@ from mcp_entraid.schemas.runbooks import RunbookExecutionResponse
 from mcp_entraid.security.authorizer import Authorizer
 from mcp_entraid.settings import Settings
 
-BLOCKED_USER_VALUES = {"*", "all", "todos", "everyone", "tenant"}
+BLOCKED_USER_VALUES = {"*", "all", "todos", "everyone", "tenant", "organization"}
 UPN_PATTERN = re.compile(r"^[^@\s,;|]+@[^@\s,;|]+\.[^@\s,;|]+$")
 
 
@@ -248,7 +248,7 @@ class RunbookService:
             raise ValueError("user_upn e obrigatorio.")
         if normalized.lower() in BLOCKED_USER_VALUES:
             raise ValueError("Informe apenas um UPN de usuario. Valores amplos nao sao permitidos.")
-        if any(sep in normalized for sep in (",", ";", " ")):
+        if any(sep in normalized for sep in (",", ";", "|", " ")):
             raise ValueError("Informe apenas um UPN. Multiplos UPNs nao sao permitidos.")
         if not UPN_PATTERN.match(normalized):
             raise ValueError("user_upn deve parecer um UPN valido, como usuario@dominio.com.")

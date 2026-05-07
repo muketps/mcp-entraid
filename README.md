@@ -48,7 +48,7 @@ O projeto segue uma estrutura em camadas para manter o código simples de operar
 
 ## Referência de Tools
 
-Total atual: **12 tools públicas**.
+Total atual: **15 tools públicas**.
 
 ### Usuários
 
@@ -61,12 +61,18 @@ Total atual: **12 tools públicas**.
 - `entra_list_microsoft_authenticator_methods(user_upn: str)`: lista os métodos Microsoft Authenticator.
 - `entra_reset_mfa(action: "start" | "confirm" | "status", user_upn: str | None = None, reset_request_id: str | None = None)`: fluxo guiado para remover métodos de autenticação e revogar sessões.
 
+### Senhas
+
+- `entra_reset_user_password(user_upn: str | None = None, reset_password_request_id: str | None = None, confirmation: str | None = None)`: workflow guiado para reset de senha via runbook.
+
 ### Grupos
 
 - `entra_find_groups(query: str, exact_match: bool = True, max_results: int = 10)`: busca grupos por display name ou GUID.
 - `entra_check_required_groups_by_platform(user_upn: str, platform: str)`: verifica grupos obrigatórios por plataforma.
 - `entra_list_user_groups(user_upn: str, transitive: bool = True)`: lista grupos do usuário.
 - `entra_list_group_members(group_id: str, transitive: bool = True)`: lista membros de um grupo.
+- `entra_add_user_to_group(user_upn: str, group_id: str)`: adiciona um usuário a um grupo.
+- `entra_remove_user_from_group(user_upn: str, group_id: str)`: remove um usuário de um grupo.
 
 ### Governança de aplicativos
 
@@ -93,14 +99,23 @@ CLIENT_ID=00000000-0000-0000-0000-000000000000
 CLIENT_SECRET=your-client-secret
 GRAPH_BASE_URL=https://graph.microsoft.com/v1.0
 GRAPH_SCOPE=https://graph.microsoft.com/.default
+GRAPH_BETA_BASE_URL=https://graph.microsoft.com/beta
 AZURE_SUBSCRIPTION_ID=00000000-0000-0000-0000-000000000000
 AZURE_RESOURCE_GROUP_NAME=rg-automation
 AZURE_AUTOMATION_ACCOUNT_NAME=automation-account
 AZURE_UNLOCK_USER_RUNBOOK_NAME=Unlock-User
 AZURE_AUTOMATION_API_VERSION=2024-10-23
 AZURE_AUTOMATION_RUN_ON=
-AZURE_ALLOWED_RUNBOOKS=Unlock-User
-AZURE_RUNBOOK_PARAMETER_ALLOWLIST={"unlock-user":["UPN"]}
+AZURE_ALLOWED_RUNBOOKS=Unlock-User,Reset-Password
+AZURE_RUNBOOK_PARAMETER_ALLOWLIST={"unlock-user":["UPN"],"reset-password":["UserPrincipalName","TemporaryPassword"]}
+PASSWORD_GENERATION_MAX_ATTEMPTS=5
+PASSWORD_RESET_RUNBOOK_NAME=Reset-Password
+PASSWORD_RESET_RUNBOOK_WAIT_FOR_COMPLETION=true
+PASSWORD_RESET_RUNBOOK_TIMEOUT_SECONDS=120
+PASSWORD_RESET_RETURN_TEMPORARY_PASSWORD=true
+PASSWORD_RESET_WORKFLOW_EXPIRATION_MINUTES=15
+PASSWORD_RESET_RUNBOOK_USER_PARAM=UserPrincipalName
+PASSWORD_RESET_RUNBOOK_PASSWORD_PARAM=TemporaryPassword
 ```
 
 ## Azure Automation
@@ -110,6 +125,32 @@ Para o `azure_unlock_user`, o projeto usa o mesmo App Registration do Microsoft 
 O nome do runbook fica em `AZURE_UNLOCK_USER_RUNBOOK_NAME`. Isso é configuração de ambiente, não parâmetro público da tool.
 
 Se você usar Hybrid Runbook Worker, preencha `AZURE_AUTOMATION_RUN_ON`.
+
+## Reset de Senha
+
+O reset de senha expõe apenas a tool pública `entra_reset_user_password`.
+
+Primeira chamada:
+
+```text
+entra_reset_user_password(user_upn="usuario@empresa.com")
+```
+
+A resposta retorna a frase exata de confirmação:
+
+```text
+CONFIRMO RESET SENHA usuario@empresa.com
+```
+
+Segunda chamada:
+
+```text
+entra_reset_user_password(reset_password_request_id="...", confirmation="CONFIRMO RESET SENHA usuario@empresa.com")
+```
+
+Depois da confirmação, o servidor gera uma senha temporária localmente, valida a senha no Microsoft Graph beta `POST /users/validatePassword`, chama o runbook configurado em `PASSWORD_RESET_RUNBOOK_NAME` e decodifica o output base64 retornado.
+
+Importante: `validatePassword` exige token delegado. O provider atual deixa um ponto de extensão explícito para injetar esse token e retorna erro controlado se apenas token app-only estiver disponível.
 
 ## Permissões
 
@@ -121,7 +162,10 @@ Permissões de aplicação esperadas:
 - `UserAuthenticationMethod.ReadWrite.All`
 - `User.RevokeSessions.All`
 - `Group.Read.All`
+- `GroupMember.ReadWrite.All`
 - `Application.Read.All`
+
+Para validar senha no Graph beta, também é necessário token delegado com `User.ReadWrite` ou `User.ReadWrite.All` e role compatível.
 
 ### Azure
 

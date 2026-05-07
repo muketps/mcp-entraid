@@ -159,3 +159,83 @@ def register_group_tools(
             count=response.members_count,
         )
         return response.model_dump(mode="json")
+
+    @mcp.tool
+    async def entra_add_user_to_group(user_upn: str, group_id: str) -> dict[str, Any]:
+        await authorizer.require_group_write_permission()
+        audit_logger.log_group_query(
+            tool_name="entra_add_user_to_group",
+            user_id=user_upn,
+            group_id=group_id,
+            status="requested",
+            count=None,
+        )
+        try:
+            response = await group_service.add_user_to_group(user_upn=user_upn, group_id=group_id)
+        except ValueError as exc:
+            audit_logger.log_group_query(
+                tool_name="entra_add_user_to_group",
+                user_id=user_upn,
+                group_id=group_id,
+                status="invalid_request",
+                count=0,
+            )
+            return {
+                "success": False,
+                "group_id": "",
+                "user_id": "",
+                "user_principal_name": "",
+                "user_display_name": None,
+                "action": "add",
+                "message": str(exc),
+                "request_id": None,
+            }
+        audit_logger.log_group_query(
+            tool_name="entra_add_user_to_group",
+            user_id=response.user_id or user_upn,
+            group_id=response.group_id,
+            status="success" if response.success else "failed",
+            count=1 if response.success else 0,
+            request_id=response.request_id,
+        )
+        return response.model_dump(mode="json")
+
+    @mcp.tool
+    async def entra_remove_user_from_group(user_upn: str, group_id: str) -> dict[str, Any]:
+        await authorizer.require_group_write_permission()
+        audit_logger.log_group_query(
+            tool_name="entra_remove_user_from_group",
+            user_id=user_upn,
+            group_id=group_id,
+            status="requested",
+            count=None,
+        )
+        try:
+            response = await group_service.remove_user_from_group(user_upn=user_upn, group_id=group_id)
+        except ValueError as exc:
+            audit_logger.log_group_query(
+                tool_name="entra_remove_user_from_group",
+                user_id=user_upn,
+                group_id=group_id,
+                status="invalid_request",
+                count=0,
+            )
+            return {
+                "success": False,
+                "group_id": "",
+                "user_id": "",
+                "user_principal_name": "",
+                "user_display_name": None,
+                "action": "remove",
+                "message": str(exc),
+                "request_id": None,
+            }
+        audit_logger.log_group_query(
+            tool_name="entra_remove_user_from_group",
+            user_id=response.user_id or user_upn,
+            group_id=response.group_id,
+            status="success" if response.success else "failed",
+            count=1 if response.success else 0,
+            request_id=response.request_id,
+        )
+        return response.model_dump(mode="json")

@@ -10,11 +10,13 @@ from mcp_entraid.dependencies import (
     get_group_service,
     get_runbook_service,
     get_reset_mfa_workflow,
+    get_reset_password_workflow,
     get_user_service,
 )
 from mcp_entraid.tools.applications import register_application_tools
 from mcp_entraid.tools.authentication_methods import register_authentication_method_tools
 from mcp_entraid.tools.groups import register_group_tools
+from mcp_entraid.tools.passwords import register_password_tools
 from mcp_entraid.tools.runbooks import register_azure_unlock_user_tool
 from mcp_entraid.tools.users import register_user_tools
 
@@ -37,6 +39,11 @@ register_authentication_method_tools(
     reset_mfa_workflow=get_reset_mfa_workflow(),
     authorizer=get_authorizer(),
     audit_logger=get_audit_logger(),
+)
+
+register_password_tools(
+    mcp=mcp,
+    reset_password_workflow=get_reset_password_workflow(),
 )
 
 register_group_tools(

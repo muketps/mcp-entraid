@@ -13,6 +13,7 @@ from mcp_entraid.schemas.groups import (
     EntraGroupSummary,
     FindGroupsResponse,
     GroupComplianceItem,
+    GroupMembershipMutationResponse,
     ListGroupMembersResponse,
     ListUserGroupsResponse,
     RequiredGroup,
@@ -185,6 +186,20 @@ class GroupService:
             request_id=None,
         )
 
+    async def add_user_to_group(self, user_upn: str, group_id: str) -> GroupMembershipMutationResponse:
+        return await self._change_user_group_membership(
+            user_upn=user_upn,
+            group_id=group_id,
+            action="add",
+        )
+
+    async def remove_user_from_group(self, user_upn: str, group_id: str) -> GroupMembershipMutationResponse:
+        return await self._change_user_group_membership(
+            user_upn=user_upn,
+            group_id=group_id,
+            action="remove",
+        )
+
     async def find_groups(
         self,
         query: str,
@@ -232,6 +247,66 @@ class GroupService:
             groups_count=len(groups),
             groups=groups,
             message="Grupos retornados com sucesso." if groups else "Nenhum grupo encontrado.",
+            request_id=None,
+        )
+
+    async def _change_user_group_membership(
+        self,
+        user_upn: str,
+        group_id: str,
+        action: str,
+    ) -> GroupMembershipMutationResponse:
+        normalized_group_id = self._validate_group_id(group_id)
+        user_response = await self._user_service.get_user(user_upn)
+        if not user_response.success or user_response.data is None:
+            return self._membership_error(
+                group_id=normalized_group_id,
+                user_id="",
+                user_principal_name="",
+                user_display_name=None,
+                action=action,
+                message=f"Falha ao validar usuario: {user_response.error}",
+                request_id=user_response.request_id,
+            )
+
+        user = user_response.data
+        try:
+            if action == "add":
+                await self._graph_client.post(
+                    f"/groups/{encode_path_segment(normalized_group_id)}/members/$ref",
+                    json={
+                        "@odata.id": (
+                            "https://graph.microsoft.com/v1.0/directoryObjects/"
+                            f"{encode_path_segment(user.user_id)}"
+                        )
+                    },
+                )
+                message = "Usuario adicionado ao grupo com sucesso."
+            else:
+                await self._graph_client.delete(
+                    f"/groups/{encode_path_segment(normalized_group_id)}/members/"
+                    f"{encode_path_segment(user.user_id)}/$ref"
+                )
+                message = "Usuario removido do grupo com sucesso."
+        except GraphAPIError as exc:
+            return self._membership_error(
+                group_id=normalized_group_id,
+                user_id=user.user_id,
+                user_principal_name=user.user_principal_name or "",
+                user_display_name=user.display_name,
+                action=action,
+                message=str(exc),
+                request_id=exc.request_id,
+            )
+
+        return GroupMembershipMutationResponse(
+            success=True,
+            group_id=normalized_group_id,
+            user_id=user.user_id,
+            user_principal_name=user.user_principal_name or "",
+            user_display_name=user.display_name,
+            action=action,
+            message=message,
             request_id=None,
         )
 
@@ -383,6 +458,27 @@ class GroupService:
             inherited_groups=[],
             missing_groups=[],
             all_groups_checked=[],
+            message=message,
+            request_id=request_id,
+        )
+
+    def _membership_error(
+        self,
+        group_id: str,
+        user_id: str,
+        user_principal_name: str,
+        user_display_name: str | None,
+        action: str,
+        message: str,
+        request_id: str | None,
+    ) -> GroupMembershipMutationResponse:
+        return GroupMembershipMutationResponse(
+            success=False,
+            group_id=group_id,
+            user_id=user_id,
+            user_principal_name=user_principal_name,
+            user_display_name=user_display_name,
+            action=action,
             message=message,
             request_id=request_id,
         )
